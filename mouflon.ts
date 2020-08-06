@@ -1,8 +1,19 @@
-#!/usr/bin/env -S deno run --unstable --allow-net --allow-read
+#!/usr/bin/env -S deno run --unstable --allow-net --allow-read --allow-env --allow-write --allow-run
 
 import { Application, Router } from "https://deno.land/x/oak@v6.0.1/mod.ts";
-import { readJson } from "https://deno.land/std@v0.61.0/fs/mod.ts";
-import { assert } from "https://deno.land/std@v0.61.0/testing/asserts.ts";
+import {
+  ensureDir,
+  exists,
+  readJson,
+  writeJson,
+} from "https://deno.land/std@v0.63.0/fs/mod.ts";
+import { join } from "https://deno.land/std@v0.63.0/path/mod.ts";
+import { assert } from "https://deno.land/std@v0.63.0/testing/asserts.ts";
+import { deferred } from "https://deno.land/std@v0.63.0/async/deferred.ts";
+import addSeconds from "https://deno.land/x/date_fns@v2.15.0/addSeconds/index.js";
+import parseIso from "https://deno.land/x/date_fns@v2.15.0/parseISO/index.js";
+
+const VALID_GRACE_SECONDS = 10;
 
 type KeycloakClientConfig = {
   resource: string;
@@ -17,6 +28,15 @@ type ClientConfig = {
   clientId: string;
   clientSecret: string;
 };
+
+async function openBrowser(url: string): Promise<void> {
+  // TODO: this is Linux specific, add support for MacOS
+  const process = Deno.run({ cmd: ["sensible-browser", url] });
+  const status = await process.status();
+  if (!status.success) {
+    console.log("Please open " + url);
+  }
+}
 
 async function readKeycloakConfig(
   configFile: string = "./keycloak.json",
@@ -43,25 +63,66 @@ async function readKeycloakConfig(
   };
 }
 
-async function main() {
-  const config = await readKeycloakConfig();
+/**
+ * initialize cache directory where we'll store access-tokens and refresh-tokens
+ */
+async function initCacheDirectory(): Promise<string> {
+  const HOME = Deno.env.get("HOME");
+  assert(HOME, "$HOME not set");
+  // cache directory according to https://specifications.freedesktop.org/basedir-spec/basedir-spec-0.6.html
+  const XDG_CACHE_HOME = Deno.env.get("XDG_CACHE_HOME") ||
+    join(HOME!, ".cache");
+  const cacheDirectory = join(XDG_CACHE_HOME, "mouflon");
+
+  await ensureDir(cacheDirectory);
+
+  return cacheDirectory;
+}
+
+type AccessTokenResponse = {
+  access_token: string;
+  expires_in: number;
+  refresh_expires_in: 1800;
+  refresh_token: string;
+  token_type: string;
+  "not-before-policy": number;
+  session_state: string;
+  scope: string;
+};
+
+type AuthorizationData = {
+  // "client side" iat, as the server-time might differ, and so we do not need to read the JWT
+  iat: Date;
+  atResponse: AccessTokenResponse;
+};
+
+/**
+ * get an access token response (i.e.: access token and refresh token) by starting a local webserver and letting the user
+ * do the "oauth-dance"
+ *
+ * @param clientConfig
+ */
+async function fetchAtAuthorizationCodeFlow(
+  clientConfig: ClientConfig,
+): Promise<AccessTokenResponse | Error> {
   const port = 3000;
   const redirectPath = "/";
   const redirectUri = `http://localhost:${port}${redirectPath}`;
   const authUrl =
-    `${config.authorizationEndpoint}?client_id=${config.clientId}&redirect_uri=${redirectUri}&response_type=code`;
+    `${clientConfig.authorizationEndpoint}?client_id=${clientConfig.clientId}&redirect_uri=${redirectUri}&response_type=code`;
+
+  const result = deferred<AccessTokenResponse | Error>();
 
   const controller = new AbortController();
-
   const router = new Router();
   router.get(redirectPath, async (ctx) => {
     const code = ctx.request.url.searchParams.get("code");
 
     const response = await fetch(
-      config.tokenEndpoint,
+      clientConfig.tokenEndpoint,
       {
         body:
-          `grant_type=authorization_code&client_id=${config.clientId}&client_secret=${config.clientSecret}&code=${code}&redirect_uri=${redirectUri}`,
+          `grant_type=authorization_code&client_id=${clientConfig.clientId}&client_secret=${clientConfig.clientSecret}&code=${code}&redirect_uri=${redirectUri}`,
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -69,10 +130,20 @@ async function main() {
       },
     );
 
-    const token = await response.json();
+    if (response.ok) {
+      const atResponse = await response.json();
 
-    ctx.response.body = "OK, you may now close the browser.";
-    console.log(JSON.stringify(token, null, 2));
+      ctx.response.body = "OK, you may now close the browser.";
+      result.resolve(atResponse);
+    } else {
+      ctx.response.body =
+        "Failed, but you may now close the browser nevertheless.";
+      // return an error instead of `reject()`, because rejecting here is like throw.
+      // I'm not sure if I agree to that handling (of promise/deferred), but OK, this is my workaround,
+      // so we can properly clean up.
+      result.resolve(new Error(JSON.stringify(await response.json(), null, 2)));
+    }
+
     controller.abort();
   });
 
@@ -81,9 +152,117 @@ async function main() {
   app.use(router.routes());
   app.use(router.allowedMethods());
 
-  console.log("Please open " + authUrl);
+  await openBrowser(authUrl);
 
   await app.listen({ port: 3000, signal: controller.signal });
+
+  return result;
+}
+
+/**
+ * fetch new access token with a given refresh token
+ *
+ * @param clientConfig
+ * @param refreshToken
+ */
+async function fetchAtRefreshTokenFlow(
+  clientConfig: ClientConfig,
+  refreshToken: string,
+) {
+  const response = await fetch(
+    clientConfig.tokenEndpoint,
+    {
+      body:
+        `grant_type=refresh_token&client_id=${clientConfig.clientId}&client_secret=${clientConfig.clientSecret}&refresh_token=${refreshToken}`,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    },
+  );
+
+  return await response.json();
+}
+
+async function writeAccessTokenResponse(
+  cacheDir: string,
+  atResponse: AccessTokenResponse,
+): Promise<void> {
+  const auth: AuthorizationData = {
+    iat: new Date(),
+    atResponse,
+  };
+
+  await writeJson(
+    join(cacheDir, "authorizationData.json"),
+    auth,
+    { spaces: 2 },
+  );
+}
+
+async function readCachedAuth(
+  cacheDir: string,
+): Promise<AuthorizationData | null> {
+  const f = join(cacheDir, "authorizationData.json");
+  if (!await exists(f)) {
+    return null;
+  }
+
+  const data = await readJson(f) as any;
+  // "revive" the date object:
+  data.iat = parseIso(data.iat, {});
+
+  return data as AuthorizationData;
+}
+
+function isAtValid(auth: AuthorizationData) {
+  return new Date() <
+    addSeconds(auth.iat, auth.atResponse.expires_in - VALID_GRACE_SECONDS);
+}
+
+function isRtValid(auth: AuthorizationData) {
+  return new Date() <
+    addSeconds(
+      auth.iat,
+      auth.atResponse.refresh_expires_in - VALID_GRACE_SECONDS,
+    );
+}
+
+async function getAccessToken(
+  cacheDir: string,
+  clientConfig: ClientConfig,
+): Promise<string> {
+  const cachedAuth = await readCachedAuth(cacheDir);
+
+  if (cachedAuth) {
+    if (isAtValid(cachedAuth)) {
+      return cachedAuth.atResponse.access_token;
+    } // access token expired, but refresh token still valid
+    else if (isRtValid(cachedAuth)) {
+      const rtResponse = await fetchAtRefreshTokenFlow(
+        clientConfig,
+        cachedAuth.atResponse.refresh_token,
+      );
+
+      await writeAccessTokenResponse(cacheDir, rtResponse);
+      return rtResponse.access_token;
+    }
+  }
+
+  // no token at all, or expired token, do the normal authorization code flow
+  const atr = await fetchAtAuthorizationCodeFlow(clientConfig);
+  if (atr instanceof Error) throw atr;
+  await writeAccessTokenResponse(cacheDir, atr);
+  return atr.access_token;
+}
+
+async function main() {
+  const cacheDir = await initCacheDirectory();
+  const clientConfig = await readKeycloakConfig();
+
+  const at = await getAccessToken(cacheDir, clientConfig);
+
+  console.log(at);
 }
 
 if (import.meta.main) {
