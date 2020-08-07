@@ -38,10 +38,20 @@ async function openBrowser(url: string): Promise<void> {
   }
 }
 
-async function readKeycloakConfig(
-  configFile: string = "./keycloak.json",
-): Promise<ClientConfig> {
-  const kcConfig = await readJson(configFile) as KeycloakClientConfig;
+async function initConfig(): Promise<ClientConfig> {
+  const HOME = Deno.env.get("HOME");
+  assert(HOME, "$HOME not set");
+  // cache directory according to https://specifications.freedesktop.org/basedir-spec/basedir-spec-0.6.html
+  const XDG_CONFIG_HOME = Deno.env.get("XDG_CONFIG_HOME") ||
+    join(HOME!, ".config");
+  const configDirectory = join(XDG_CONFIG_HOME, "mouflon");
+
+  await ensureDir(configDirectory);
+
+  // TODO: support different configurations
+  const defaultConfigFile = join(configDirectory, "default.json");
+
+  const kcConfig = await readJson(defaultConfigFile) as KeycloakClientConfig;
 
   // fetch the openid configuration from the discovery endpoint
   const response = await fetch(
@@ -258,7 +268,7 @@ async function getAccessToken(
 
 async function main() {
   const cacheDir = await initCacheDirectory();
-  const clientConfig = await readKeycloakConfig();
+  const clientConfig = await initConfig();
 
   const at = await getAccessToken(cacheDir, clientConfig);
 
