@@ -32,7 +32,7 @@ Place file `mouflon.ts` into your `$PATH` (e.g. `~/bin`) and set the execution-b
 
 ### Keycloak
 
-Create an OIDC client (Standard flow enabled), should be "confidential", allow `http://localhost:3000/` as redirect URL.
+Create an OIDC client (Standard flow enabled), should be "confidential", allow `http://localhost:4800/` as redirect URL.
 
 Download the "*Keycloak OIDC JSON*" file available under the "*Installation*" tab.
 

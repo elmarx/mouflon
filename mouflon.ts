@@ -1,18 +1,15 @@
 #!/usr/bin/env -S deno run --unstable --allow-net --allow-read --allow-env --allow-write --allow-run
 
-import { Application, Router } from "https://deno.land/x/oak@v6.0.1/mod.ts";
-import {
-  ensureDir,
-  exists,
-  readJson,
-  writeJson,
-} from "https://deno.land/std@v0.64.0/fs/mod.ts";
-import { join } from "https://deno.land/std@v0.64.0/path/mod.ts";
-import { assert } from "https://deno.land/std@v0.64.0/testing/asserts.ts";
-import { deferred } from "https://deno.land/std@v0.64.0/async/deferred.ts";
+import {Application, Router} from "https://deno.land/x/oak@v6.0.1/mod.ts";
+import {ensureDir, exists, readJson, writeJson,} from "https://deno.land/std@v0.64.0/fs/mod.ts";
+import {join} from "https://deno.land/std@v0.64.0/path/mod.ts";
+import {assert} from "https://deno.land/std@v0.64.0/testing/asserts.ts";
+import {deferred} from "https://deno.land/std@v0.64.0/async/deferred.ts";
 import addSeconds from "https://deno.land/x/date_fns@v2.15.0/addSeconds/index.js";
 import parseIso from "https://deno.land/x/date_fns@v2.15.0/parseISO/index.js";
-import { parse } from "https://deno.land/std@0.64.0/flags/mod.ts";
+import {parse} from "https://deno.land/std@0.64.0/flags/mod.ts";
+
+const MOUFLON_PORT = parseInt(Deno.env.get("MOUFLON_PORT") || "4800");
 
 const VALID_GRACE_SECONDS = 10;
 
@@ -118,9 +115,8 @@ type AuthorizationData = {
 async function fetchAtAuthorizationCodeFlow(
   clientConfig: ClientConfig,
 ): Promise<AccessTokenResponse | Error> {
-  const port = 3000;
   const redirectPath = "/";
-  const redirectUri = `http://localhost:${port}${redirectPath}`;
+  const redirectUri = `http://localhost:${MOUFLON_PORT}${redirectPath}`;
   const authUrl =
     `${clientConfig.authorizationEndpoint}?client_id=${clientConfig.clientId}&redirect_uri=${redirectUri}&response_type=code`;
 
@@ -167,7 +163,7 @@ async function fetchAtAuthorizationCodeFlow(
 
   await openBrowser(authUrl);
 
-  await app.listen({ port: 3000, signal: controller.signal });
+  await app.listen({ port: MOUFLON_PORT, signal: controller.signal });
 
   return result;
 }
