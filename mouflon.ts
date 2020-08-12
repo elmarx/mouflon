@@ -6,12 +6,13 @@ import {
   exists,
   readJson,
   writeJson,
-} from "https://deno.land/std@v0.63.0/fs/mod.ts";
-import { join } from "https://deno.land/std@v0.63.0/path/mod.ts";
-import { assert } from "https://deno.land/std@v0.63.0/testing/asserts.ts";
-import { deferred } from "https://deno.land/std@v0.63.0/async/deferred.ts";
+} from "https://deno.land/std@v0.64.0/fs/mod.ts";
+import { join } from "https://deno.land/std@v0.64.0/path/mod.ts";
+import { assert } from "https://deno.land/std@v0.64.0/testing/asserts.ts";
+import { deferred } from "https://deno.land/std@v0.64.0/async/deferred.ts";
 import addSeconds from "https://deno.land/x/date_fns@v2.15.0/addSeconds/index.js";
 import parseIso from "https://deno.land/x/date_fns@v2.15.0/parseISO/index.js";
+import { parse } from "https://deno.land/std@0.64.0/flags/mod.ts";
 
 const VALID_GRACE_SECONDS = 10;
 
@@ -38,7 +39,7 @@ async function openBrowser(url: string): Promise<void> {
   }
 }
 
-async function initConfig(): Promise<ClientConfig> {
+async function initConfig(config?: string): Promise<ClientConfig> {
   const HOME = Deno.env.get("HOME");
   assert(HOME, "$HOME not set");
   // cache directory according to https://specifications.freedesktop.org/basedir-spec/basedir-spec-0.6.html
@@ -48,10 +49,12 @@ async function initConfig(): Promise<ClientConfig> {
 
   await ensureDir(configDirectory);
 
-  // TODO: support different configurations
-  const defaultConfigFile = join(configDirectory, "default.json");
+  const configFile = join(configDirectory, `${config}.json`);
 
-  const kcConfig = await readJson(defaultConfigFile) as KeycloakClientConfig;
+  if(!await exists(configFile)) {
+    throw new Error(`config file ${configFile} does not exist`);
+  }
+  const kcConfig = await readJson(configFile) as KeycloakClientConfig;
 
   // fetch the openid configuration from the discovery endpoint
   const response = await fetch(
@@ -268,7 +271,11 @@ async function getAccessToken(
 
 async function main() {
   const cacheDir = await initCacheDirectory();
-  const clientConfig = await initConfig();
+
+  const args = parse(Deno.args);
+  const [config = "default"] = args._;
+
+  const clientConfig = await initConfig(config as string);
 
   const at = await getAccessToken(cacheDir, clientConfig);
 
