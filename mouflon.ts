@@ -1,13 +1,13 @@
 #!/usr/bin/env -S deno run --unstable --allow-net --allow-read --allow-env --allow-write --allow-run
 
-import {Application, Router} from "https://deno.land/x/oak@v6.3.0/mod.ts";
-import {ensureDir, exists} from "https://deno.land/std@v0.73.0/fs/mod.ts";
-import {join} from "https://deno.land/std@v0.73.0/path/mod.ts";
-import {assert} from "https://deno.land/std@v0.73.0/testing/asserts.ts";
-import {deferred} from "https://deno.land/std@v0.73.0/async/deferred.ts";
+import { Application, Router } from "https://deno.land/x/oak@v6.3.1/mod.ts";
+import { ensureDir, exists } from "https://deno.land/std@0.76.0/fs/mod.ts";
+import { join } from "https://deno.land/std@0.76.0/path/mod.ts";
+import { assert } from "https://deno.land/std@0.76.0/testing/asserts.ts";
+import { deferred } from "https://deno.land/std@0.76.0/async/deferred.ts";
 import addSeconds from "https://deno.land/x/date_fns@v2.15.0/addSeconds/index.js";
 import parseIso from "https://deno.land/x/date_fns@v2.15.0/parseISO/index.js";
-import {parse} from "https://deno.land/std@0.73.0/flags/mod.ts";
+import { parse } from "https://deno.land/std@0.76.0/flags/mod.ts";
 
 const MOUFLON_PORT = parseInt(Deno.env.get("MOUFLON_PORT") || "4800");
 
@@ -48,10 +48,12 @@ async function initConfig(config?: string): Promise<ClientConfig> {
 
   const configFile = join(configDirectory, `${config}.json`);
 
-  if(!await exists(configFile)) {
+  if (!await exists(configFile)) {
     throw new Error(`config file ${configFile} does not exist`);
   }
-  const kcConfig = JSON.parse(await Deno.readTextFile(configFile)) as KeycloakClientConfig;
+  const kcConfig = JSON.parse(
+    await Deno.readTextFile(configFile),
+  ) as KeycloakClientConfig;
 
   // fetch the openid configuration from the discovery endpoint
   const response = await fetch(
@@ -206,9 +208,9 @@ async function writeAccessTokenResponse(
     join(cacheDir, "authorizationData.json"),
     JSON.stringify(
       auth,
-    null,
-        2
-    )
+      null,
+      2,
+    ),
   );
 }
 
