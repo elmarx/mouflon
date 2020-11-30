@@ -4,11 +4,14 @@ import { Application, Router } from "https://deno.land/x/oak@v6.3.2/mod.ts";
 import addSeconds from "https://deno.land/x/date_fns@v2.15.0/addSeconds/index.js";
 import parseIso from "https://deno.land/x/date_fns@v2.15.0/parseISO/index.js";
 
+import { createHash } from "https://deno.land/std@0.79.0/hash/mod.ts";
 import { ensureDir, exists } from "https://deno.land/std@0.79.0/fs/mod.ts";
 import { join } from "https://deno.land/std@0.79.0/path/mod.ts";
 import { assert } from "https://deno.land/std@0.79.0/testing/asserts.ts";
 import { deferred } from "https://deno.land/std@0.79.0/async/deferred.ts";
 import { parse } from "https://deno.land/std@0.79.0/flags/mod.ts";
+import { passwordGenerator } from "https://deno.land/x/password_generator/mod.ts";
+import { encode as encodeBase64Url } from "https://deno.land/std@0.79.0/encoding/base64url.ts";
 
 const MOUFLON_PORT = parseInt(Deno.env.get("MOUFLON_PORT") || "4800");
 
@@ -27,6 +30,33 @@ type ClientConfig = {
   clientId: string;
   clientSecret: string;
 };
+
+/**
+ * turn a simple object to an urlencoded string, i.e.
+ * the x=1&y=2 thingy
+ */
+function toUrlEncodedString(
+  p: Record<string, string | undefined | null>,
+): string {
+  return Object.entries(p)
+    .map(([n, v]) => {
+      if (v) return `${n}=${v}`;
+      else return null;
+    })
+    .filter((v) => v !== null)
+    .join("&");
+}
+
+/**
+ * build the challenge for a given verifier, i.e.: base64url-encoded sha256 hash
+ */
+function verifierToChallenge(verifier: string) {
+  const hasher = createHash("sha256");
+  hasher.update(verifier);
+
+  const hash = new Uint8Array(hasher.digest());
+  return encodeBase64Url(hash);
+}
 
 async function openBrowser(url: string): Promise<void> {
   // TODO: this is Linux specific, add support for MacOS
@@ -119,9 +149,20 @@ async function fetchAtAuthorizationCodeFlow(
   clientConfig: ClientConfig,
 ): Promise<AccessTokenResponse | Error> {
   const redirectPath = "/";
-  const redirectUri = `http://localhost:${MOUFLON_PORT}${redirectPath}`;
-  const authUrl =
-    `${clientConfig.authorizationEndpoint}?client_id=${clientConfig.clientId}&redirect_uri=${redirectUri}&response_type=code`;
+  const storedState = passwordGenerator("aA0", 16);
+  const codeVerifier = passwordGenerator("aA0", 64);
+
+  const params = {
+    client_id: clientConfig.clientId,
+    redirect_uri: `http://localhost:${MOUFLON_PORT}${redirectPath}`,
+    response_type: "code",
+    code_challenge: verifierToChallenge(codeVerifier),
+    code_challenge_method: "S256",
+    state: storedState,
+  };
+
+  const authUrl = `${clientConfig.authorizationEndpoint}?` +
+    toUrlEncodedString(params);
 
   const result = deferred<AccessTokenResponse | Error>();
 
@@ -129,31 +170,64 @@ async function fetchAtAuthorizationCodeFlow(
   const router = new Router();
   router.get(redirectPath, async (ctx) => {
     const code = ctx.request.url.searchParams.get("code");
+    const returnedState = ctx.request.url.searchParams.get("state");
 
-    const response = await fetch(
-      clientConfig.tokenEndpoint,
-      {
-        body:
-          `grant_type=authorization_code&client_id=${clientConfig.clientId}&client_secret=${clientConfig.clientSecret}&code=${code}&redirect_uri=${redirectUri}`,
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      },
+    // ideally, these params should be null
+    const error = ctx.request.url.searchParams.get("error");
+    const errorDescription = ctx.request.url.searchParams.get(
+      "error_description",
     );
 
-    if (response.ok) {
-      const atResponse = await response.json();
-
-      ctx.response.body = "OK, you may now close the browser.";
-      result.resolve(atResponse);
-    } else {
+    if (error) {
       ctx.response.body =
-        "Failed, but you may now close the browser nevertheless.";
-      // return an error instead of `reject()`, because rejecting here is like throw.
-      // I'm not sure if I agree to that handling (of promise/deferred), but OK, this is my workaround,
-      // so we can properly clean up.
-      result.resolve(new Error(JSON.stringify(await response.json(), null, 2)));
+        `Request failed: ${error}. You may now close the browser nevertheless.`;
+      result.resolve(new Error(`error=${error}: ${errorDescription}`));
+    } else if (returnedState !== storedState) {
+      ctx.response.body =
+        "State parameter verification failed. You may now close the browser nevertheless.";
+
+      result.resolve(
+        new Error(
+          `State parameter verification failed: "${returnedState}" != "${storedState}".`,
+        ),
+      );
+    } else {
+      const params = {
+        grant_type: "authorization_code",
+        client_id: clientConfig.clientId,
+        client_secret: clientConfig.clientSecret,
+        redirect_uri: `http://localhost:${MOUFLON_PORT}${redirectPath}`,
+        code,
+        // PKCE: now send the original verifier, to proof we know the response to the original challenge (which is a hash)
+        code_verifier: codeVerifier,
+      };
+
+      const response = await fetch(
+        clientConfig.tokenEndpoint,
+        {
+          body: toUrlEncodedString(params),
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        },
+      );
+
+      if (response.ok) {
+        const atResponse = await response.json();
+
+        ctx.response.body = "OK, you may now close the browser.";
+        result.resolve(atResponse);
+      } else {
+        ctx.response.body =
+          "Failed, but you may now close the browser nevertheless.";
+        // return an error instead of `reject()`, because rejecting here is like throw.
+        // I'm not sure if I agree to that handling (of promise/deferred), but OK, this is my workaround,
+        // so we can properly clean up.
+        result.resolve(
+          new Error(JSON.stringify(await response.json(), null, 2)),
+        );
+      }
     }
 
     controller.abort();
