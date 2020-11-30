@@ -1,13 +1,14 @@
 #!/usr/bin/env -S deno run --unstable --allow-net --allow-read --allow-env --allow-write --allow-run
 
-import { Application, Router } from "https://deno.land/x/oak@v6.3.1/mod.ts";
-import { ensureDir, exists } from "https://deno.land/std@0.76.0/fs/mod.ts";
-import { join } from "https://deno.land/std@0.76.0/path/mod.ts";
-import { assert } from "https://deno.land/std@0.76.0/testing/asserts.ts";
-import { deferred } from "https://deno.land/std@0.76.0/async/deferred.ts";
+import { Application, Router } from "https://deno.land/x/oak@v6.3.2/mod.ts";
 import addSeconds from "https://deno.land/x/date_fns@v2.15.0/addSeconds/index.js";
 import parseIso from "https://deno.land/x/date_fns@v2.15.0/parseISO/index.js";
-import { parse } from "https://deno.land/std@0.76.0/flags/mod.ts";
+
+import { ensureDir, exists } from "https://deno.land/std@0.79.0/fs/mod.ts";
+import { join } from "https://deno.land/std@0.79.0/path/mod.ts";
+import { assert } from "https://deno.land/std@0.79.0/testing/asserts.ts";
+import { deferred } from "https://deno.land/std@0.79.0/async/deferred.ts";
+import { parse } from "https://deno.land/std@0.79.0/flags/mod.ts";
 
 const MOUFLON_PORT = parseInt(Deno.env.get("MOUFLON_PORT") || "4800");
 
