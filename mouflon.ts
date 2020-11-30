@@ -19,16 +19,17 @@ const VALID_GRACE_SECONDS = 10;
 
 type KeycloakClientConfig = {
   resource: string;
-  credentials: { secret: string };
+  credentials?: { secret: string };
   realm: string;
   "auth-server-url": string;
+  "public-client"?: boolean;
 };
 
 type ClientConfig = {
   tokenEndpoint: string;
   authorizationEndpoint: string;
   clientId: string;
-  clientSecret: string;
+  clientSecret?: string;
 };
 
 /**
@@ -98,11 +99,18 @@ async function initConfig(config?: string): Promise<ClientConfig> {
     authorization_endpoint: string;
   };
 
+  const clientSecret = kcConfig.credentials?.secret;
+
+  assert(
+    clientSecret || kcConfig["public-client"] === true,
+    "the client either needs to be public or requires a secret",
+  );
+
   return {
     tokenEndpoint: oidcConfig.token_endpoint,
     authorizationEndpoint: oidcConfig.authorization_endpoint,
     clientId: kcConfig.resource,
-    clientSecret: kcConfig.credentials.secret,
+    clientSecret,
   };
 }
 
