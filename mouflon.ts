@@ -286,6 +286,7 @@ async function fetchAtRefreshTokenFlow(
 
 async function writeAccessTokenResponse(
   cacheDir: string,
+  configName: string,
   atResponse: AccessTokenResponse,
 ): Promise<void> {
   const auth: AuthorizationData = {
@@ -294,7 +295,7 @@ async function writeAccessTokenResponse(
   };
 
   await Deno.writeTextFile(
-    join(cacheDir, "authorizationData.json"),
+    join(cacheDir, `${configName}.json`),
     JSON.stringify(
       auth,
       null,
@@ -305,8 +306,9 @@ async function writeAccessTokenResponse(
 
 async function readCachedAuth(
   cacheDir: string,
+  configName: string,
 ): Promise<AuthorizationData | null> {
-  const f = join(cacheDir, "authorizationData.json");
+  const f = join(cacheDir, `${configName}.json`);
   if (!await exists(f)) {
     return null;
   }
@@ -333,9 +335,10 @@ function isRtValid(auth: AuthorizationData) {
 
 async function getAccessToken(
   cacheDir: string,
+  configName: string,
   clientConfig: ClientConfig,
 ): Promise<string> {
-  const cachedAuth = await readCachedAuth(cacheDir);
+  const cachedAuth = await readCachedAuth(cacheDir, configName);
 
   if (cachedAuth) {
     if (isAtValid(cachedAuth)) {
@@ -347,7 +350,7 @@ async function getAccessToken(
         cachedAuth.atResponse.refresh_token,
       );
 
-      await writeAccessTokenResponse(cacheDir, rtResponse);
+      await writeAccessTokenResponse(cacheDir, configName, rtResponse);
       return rtResponse.access_token;
     }
   }
@@ -355,7 +358,7 @@ async function getAccessToken(
   // no token at all, or expired token, do the normal authorization code flow
   const atr = await fetchAtAuthorizationCodeFlow(clientConfig);
   if (atr instanceof Error) throw atr;
-  await writeAccessTokenResponse(cacheDir, atr);
+  await writeAccessTokenResponse(cacheDir, configName, atr);
   return atr.access_token;
 }
 
@@ -367,7 +370,7 @@ async function main() {
 
   const clientConfig = await initConfig(config as string);
 
-  const at = await getAccessToken(cacheDir, clientConfig);
+  const at = await getAccessToken(cacheDir, config as string, clientConfig);
 
   console.log(at);
 }
