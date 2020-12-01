@@ -59,9 +59,15 @@ function verifierToChallenge(verifier: string) {
   return encodeBase64Url(hash);
 }
 
+const browserApplications = {
+  linux: "sensible-browser",
+  darwin: "open",
+  windows: "explorer",
+};
 async function openBrowser(url: string): Promise<void> {
-  // TODO: this is Linux specific, add support for MacOS
-  const process = Deno.run({ cmd: ["sensible-browser", url] });
+  const cmd = browserApplications[Deno.build.os];
+
+  const process = Deno.run({ cmd: [cmd, url] });
   const status = await process.status();
   if (!status.success) {
     console.log("Please open " + url);
