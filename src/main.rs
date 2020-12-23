@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+mod config;
 
 /// start a webserver and return the query-parameter "code"
 pub async fn receive_code() -> String {
