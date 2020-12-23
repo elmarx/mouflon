@@ -16,3 +16,7 @@ pub struct ClientConfig {
     pub client_id: String,
     pub client_secret: Option<String>,
 }
+
+pub fn get_configs() -> Vec<ClientConfig> {
+    todo!()
+}

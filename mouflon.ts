@@ -357,7 +357,7 @@ async function getAccessToken(
 
   // no token at all, or expired token, do the normal authorization code flow
   const atr = await fetchAtAuthorizationCodeFlow(clientConfig);
-  if (atr instanceof Error) throw atr;
+  if (atr instanceof Error) throw atr;  
   await writeAccessTokenResponse(cacheDir, configName, atr);
   return atr.access_token;
 }
