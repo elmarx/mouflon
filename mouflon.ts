@@ -4,14 +4,14 @@ import { Application, Router } from "https://deno.land/x/oak@v6.3.2/mod.ts";
 import addSeconds from "https://deno.land/x/date_fns@v2.15.0/addSeconds/index.js";
 import parseIso from "https://deno.land/x/date_fns@v2.15.0/parseISO/index.js";
 
-import { createHash } from "https://deno.land/std@0.79.0/hash/mod.ts";
-import { ensureDir, exists } from "https://deno.land/std@0.79.0/fs/mod.ts";
-import { join } from "https://deno.land/std@0.79.0/path/mod.ts";
-import { assert } from "https://deno.land/std@0.79.0/testing/asserts.ts";
-import { deferred } from "https://deno.land/std@0.79.0/async/deferred.ts";
-import { parse } from "https://deno.land/std@0.79.0/flags/mod.ts";
+import { createHash } from "https://deno.land/std@0.82.0/hash/mod.ts";
+import { ensureDir, exists } from "https://deno.land/std@0.82.0/fs/mod.ts";
+import { join } from "https://deno.land/std@0.82.0/path/mod.ts";
+import { assert } from "https://deno.land/std@0.82.0/testing/asserts.ts";
+import { deferred } from "https://deno.land/std@0.82.0/async/deferred.ts";
+import { parse } from "https://deno.land/std@0.82.0/flags/mod.ts";
 import { passwordGenerator } from "https://deno.land/x/password_generator/mod.ts";
-import { encode as encodeBase64Url } from "https://deno.land/std@0.79.0/encoding/base64url.ts";
+import { encode as encodeBase64Url } from "https://deno.land/std@0.82.0/encoding/base64url.ts";
 
 const MOUFLON_PORT = parseInt(Deno.env.get("MOUFLON_PORT") || "4800");
 
