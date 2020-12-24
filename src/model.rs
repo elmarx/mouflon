@@ -22,5 +22,6 @@ pub struct AccessTokenResponse {
 pub struct AuthorizationData {
     // "client side" iat, as the server-time might differ, and also we do not need to read the JWT
     pub iat: DateTime<Utc>,
+    #[serde(alias = "atResponse")]
     pub at_response: AccessTokenResponse,
 }

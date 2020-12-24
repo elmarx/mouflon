@@ -30,8 +30,6 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .find(|c| *c.name == config)
         .expect("did not find config");
 
-    dbg!(config);
-
     let at = get_access_token(cache_dir, config).await;
 
     println!("{}", at);
