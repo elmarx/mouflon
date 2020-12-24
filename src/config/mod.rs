@@ -1,3 +1,5 @@
+use std::path::Path;
+
 mod keycloak;
 
 pub enum Endpoint {
@@ -17,6 +19,6 @@ pub struct ClientConfig {
     pub client_secret: Option<String>,
 }
 
-pub fn get_configs() -> Vec<ClientConfig> {
+pub fn get_configs<P: AsRef<Path>>(path: P) -> Vec<ClientConfig> {
     todo!()
 }
