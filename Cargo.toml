@@ -17,3 +17,4 @@ log = "0.4.11"
 env_logger = "0.8.2"
 chrono = { version = "0.4.19", features = ["serde"] }
 serde_with = "1.6.0"
+lazy_static = "1.4.0"

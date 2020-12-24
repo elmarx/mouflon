@@ -470,6 +470,7 @@ dependencies = [
  "directories-next",
  "env_logger",
  "hyper",
+ "lazy_static",
  "log",
  "serde",
  "serde_json",
