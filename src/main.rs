@@ -1,4 +1,4 @@
-use crate::config::get_configs;
+use crate::config::read_configs;
 use crate::token::get_access_token;
 use directories_next::ProjectDirs;
 use std::env;
@@ -16,7 +16,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     create_dir_all(cache_dir).expect("could not create cache directory");
     create_dir_all(config_dir).expect("could not create config directory");
 
-    let configs = get_configs(config_dir);
+    let configs = read_configs(config_dir)?;
 
     let config = env::args()
         .nth(2)
@@ -26,6 +26,8 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .iter()
         .find(|c| *c.name == config)
         .expect("did not find config");
+
+    dbg!(config);
 
     let at = get_access_token(cache_dir, config).await;
 

@@ -374,6 +374,7 @@ version = "0.1.0"
 dependencies = [
  "directories-next",
  "hyper",
+ "log",
  "serde",
  "serde_json",
  "tokio",
