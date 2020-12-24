@@ -5,6 +5,7 @@ use std::env;
 use std::fs::create_dir_all;
 
 mod config;
+mod model;
 mod token;
 
 #[tokio::main]
