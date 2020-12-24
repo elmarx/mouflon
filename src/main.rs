@@ -9,6 +9,8 @@ mod token;
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    env_logger::init();
+
     let project_dirs = ProjectDirs::from("org", "Athmer", "Mouflon")
         .expect("could not determine user's home directory");
     let cache_dir = project_dirs.cache_dir();
