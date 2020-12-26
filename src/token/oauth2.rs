@@ -3,9 +3,10 @@ use crate::model::AccessTokenResponse;
 use crate::BoxResult;
 use hyper::client::HttpConnector;
 use hyper::Client;
+use hyper_tls::HttpsConnector;
 
 pub struct Oauth2Client {
-    client: Client<HttpConnector>,
+    client: Client<HttpsConnector<HttpConnector>>,
     authorization_endpoint: String,
     token_endpoint: String,
     client_id: String,
@@ -16,6 +17,9 @@ impl Oauth2Client {}
 
 impl Oauth2Client {
     pub async fn from(config: &ClientConfig) -> Self {
+        let https = HttpsConnector::new();
+        let client = Client::builder().build::<_, hyper::Body>(https);
+
         match &config.endpoint {
             Endpoint::Issuer(_iss) => todo!("get token endpoint via oidc discovery"),
         }
