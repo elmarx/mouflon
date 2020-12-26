@@ -8,6 +8,7 @@ use std::path::Path;
 mod cache;
 mod oauth2;
 mod openid_configuration;
+mod pkce;
 mod receive_code;
 mod valid;
 
