@@ -1,8 +1,8 @@
 use crate::config::{ClientConfig, Endpoint};
 use crate::model::AccessTokenResponse;
+use crate::BoxResult;
 use hyper::client::HttpConnector;
 use hyper::Client;
-use std::convert::Infallible;
 
 pub struct Oauth2Client {
     client: Client<HttpConnector>,
@@ -21,11 +21,11 @@ impl Oauth2Client {
         }
     }
 
-    pub async fn refresh_token(&self, rt: &str) -> Result<AccessTokenResponse, Infallible> {
+    pub async fn refresh_token(&self, rt: &str) -> BoxResult<AccessTokenResponse> {
         todo!("implement refresh token flow: {}", rt)
     }
 
-    pub async fn access_token(&self) -> Result<AccessTokenResponse, Infallible> {
+    pub async fn access_token(&self) -> BoxResult<AccessTokenResponse> {
         todo!("execute access_token flow")
     }
 }

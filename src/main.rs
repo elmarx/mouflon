@@ -8,8 +8,10 @@ mod config;
 mod model;
 mod token;
 
+pub(crate) type BoxResult<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+
 #[tokio::main]
-pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn main() -> BoxResult<()> {
     env_logger::init();
 
     let project_dirs = ProjectDirs::from("org", "Athmer", "Mouflon")
@@ -30,7 +32,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .find(|c| *c.name == config)
         .expect("did not find config");
 
-    let at = get_access_token(cache_dir, config).await;
+    let at = get_access_token(cache_dir, config).await?;
 
     println!("{}", at);
 
