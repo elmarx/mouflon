@@ -25,3 +25,19 @@ pub struct AuthorizationData {
     #[serde(alias = "atResponse")]
     pub at_response: AccessTokenResponse,
 }
+
+#[derive(Serialize, Debug)]
+pub struct BorrowedAuthorizationData<'a> {
+    pub iat: DateTime<Utc>,
+    #[serde(alias = "atResponse")]
+    pub at_response: &'a AccessTokenResponse,
+}
+
+impl<'a> BorrowedAuthorizationData<'a> {
+    pub fn new(at_response: &'a AccessTokenResponse) -> Self {
+        Self {
+            iat: Utc::now(),
+            at_response,
+        }
+    }
+}
