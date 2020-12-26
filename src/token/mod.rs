@@ -7,6 +7,7 @@ use std::path::Path;
 
 mod cache;
 mod oauth2;
+mod openid_configuration;
 mod receive_code;
 mod valid;
 
@@ -19,7 +20,7 @@ pub async fn get_access_token<P: AsRef<Path>>(
         // if there is a valid at, just return it
         Some(auth) if is_at_valid(&auth) => Ok(auth.at_response.access_token),
         Some(auth) if is_rt_valid(&auth) => {
-            let client = Oauth2Client::from(config).await;
+            let client = Oauth2Client::from(config).await?;
             let atr = client
                 .refresh_token(auth.at_response.refresh_token.as_str())
                 .await?;
@@ -29,7 +30,7 @@ pub async fn get_access_token<P: AsRef<Path>>(
         }
         // if there is a cached at, but neither the at, nor the at is valid, it's the same as no cached at at all
         _ => {
-            let client = Oauth2Client::from(config).await;
+            let client = Oauth2Client::from(config).await?;
             let atr = client.access_token().await?;
 
             write_cached_auth(cache_directory, &*config.name, &atr)?;
