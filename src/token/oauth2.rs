@@ -2,9 +2,13 @@ use crate::config::{ClientConfig, Endpoint};
 use crate::model::AccessTokenResponse;
 use crate::token::openid_configuration::OpenIdConfiguration;
 use crate::BoxResult;
+use bytes::buf::BufExt;
+use hyper::body::aggregate;
 use hyper::client::HttpConnector;
-use hyper::Client;
+use hyper::header::CONTENT_TYPE;
+use hyper::{Body, Client, Request, Response};
 use hyper_tls::HttpsConnector;
+use mime::APPLICATION_WWW_FORM_URLENCODED;
 
 pub struct Oauth2Client {
     client: Client<HttpsConnector<HttpConnector>>,
@@ -41,8 +45,32 @@ impl Oauth2Client {
         })
     }
 
+    async fn token_request(&self, body: String) -> BoxResult<Response<Body>> {
+        let body = Body::from(body);
+
+        let req = Request::builder()
+            .method("POST")
+            .uri(&*self.token_endpoint)
+            .header(CONTENT_TYPE, APPLICATION_WWW_FORM_URLENCODED.as_ref())
+            .body(body)?;
+
+        Ok(self.client.request(req).await?)
+    }
+
     pub async fn refresh_token(&self, rt: &str) -> BoxResult<AccessTokenResponse> {
-        todo!("implement refresh token flow: {}", rt)
+        let req_body = format!(
+            "grant_type=refresh_token&client_id={}&client_secret={}&refresh_token={}",
+            self.client_id,
+            self.client_secret
+                .as_ref()
+                .map_or_else(|| "", |s| s.as_str()),
+            rt
+        );
+
+        let response = self.token_request(req_body).await?;
+        let body = aggregate(response).await?;
+
+        Ok(serde_json::from_reader(body.reader())?)
     }
 
     pub async fn access_token(&self) -> BoxResult<AccessTokenResponse> {
