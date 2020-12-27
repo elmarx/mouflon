@@ -4,6 +4,7 @@ use directories_next::ProjectDirs;
 use std::env;
 use std::fs::create_dir_all;
 
+mod browser;
 mod config;
 mod model;
 mod token;
