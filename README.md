@@ -36,6 +36,24 @@ Create an OIDC client (Standard flow enabled), should be "confidential", allow `
 
 Download the "*Keycloak OIDC JSON*" file available under the "*Installation*" tab.
 
+#### Example Terraform
+
+```hcl
+resource "keycloak_openid_client" "mouflon" {
+  realm_id = keycloak_realm.this.id
+
+  description = "mouflon, a CLI tool to fetch tokens (https://github.com/elmarx/mouflon)"
+
+  access_type = "PUBLIC"
+  client_id   = "mouflon"
+
+  standard_flow_enabled = true
+  valid_redirect_uris = [
+    "http://localhost:4800/"
+  ]
+}
+```
+
 ### Mouflon
 
 Copy said JSON-file into `~/.config/mouflon/default.json` (if you set `$XDG_CONFIG_HOME` replace `~/.config` with that value).
