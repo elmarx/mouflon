@@ -60,7 +60,8 @@ function verifierToChallenge(verifier: string) {
 }
 
 const browserApplications = {
-  linux: "sensible-browser",
+  // not sure what the best tool for linux/wayland is… previously this was "sensible-browser", but I don't have this on arch by default.
+  linux: "xdg-open",
   darwin: "open",
   windows: "explorer",
 };
