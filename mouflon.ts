@@ -93,12 +93,10 @@ async function initConfig(config?: string): Promise<ClientConfig> {
     await Deno.readTextFile(configFile),
   ) as KeycloakClientConfig;
 
+  const url = new URL(`/realms/${kcConfig.realm}/.well-known/openid-configuration`, kcConfig["auth-server-url"])
+
   // fetch the openid configuration from the discovery endpoint
-  const response = await fetch(
-    `${
-      kcConfig["auth-server-url"]
-    }realms/${kcConfig.realm}/.well-known/openid-configuration`,
-  );
+  const response = await fetch(url.toString());
   assert(response.ok, response.statusText);
   const oidcConfig = await response.json() as {
     token_endpoint: string;
