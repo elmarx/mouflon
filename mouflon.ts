@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --unstable --allow-net --allow-read --allow-env --allow-write --allow-run
+#!/usr/bin/env -S deno run --allow-net --allow-read --allow-env --allow-write --allow-run
 
 import { Application, Router } from "https://deno.land/x/oak@v9.0.1/mod.ts";
 import addSeconds from "https://deno.land/x/date_fns@v2.22.1/addSeconds/index.ts";
